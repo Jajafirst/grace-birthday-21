@@ -607,7 +607,7 @@
             </div>
             <div class="strip-actions">
               <button class="btn btn-primary" id="downloadBtn">
-                Download strip
+                Save strip
               </button>
               <button class="btn btn-ghost" id="retakeBtn">Take another</button>
             </div>
@@ -800,8 +800,8 @@
         $("#stripArea").scrollIntoView({ behavior: "smooth", block: "center" });
       }
 
-      /* download strip as one image */
-      $("#downloadBtn").addEventListener("click", () => {
+      /* build the finished strip onto a canvas, then hand it back */
+      function renderStrip() {
         const pad = 14,
           gap = 8,
           iw = 460,
@@ -815,7 +815,7 @@
         ctx.fillRect(0, 0, c.width, c.height);
 
         // load every image first, THEN draw in order
-        Promise.all(
+        return Promise.all(
           shots.map(
             (src) =>
               new Promise((res) => {
@@ -832,16 +832,59 @@
           ctx.fillStyle = "#b08d57";
           ctx.font = "italic 26px Georgia, serif";
           ctx.textAlign = "center";
-          ctx.fillText(
-            $("#strip .cap").textContent,
-            c.width / 2,
-            c.height - 26
-          );
-          const a = document.createElement("a");
-          a.download = "birthday-photobooth.jpg";
-          a.href = c.toDataURL("image/jpeg", 0.95);
-          a.click();
+          ctx.fillText($("#strip .cap").textContent, c.width / 2, c.height - 26);
+          return c;
         });
+      }
+
+      function canvasToBlob(canvas) {
+        return new Promise((res) =>
+          canvas.toBlob((b) => res(b), "image/jpeg", 0.95)
+        );
+      }
+
+      /* save / share the strip — uses the iPhone share sheet when available */
+      $("#downloadBtn").addEventListener("click", async () => {
+        const btn = $("#downloadBtn");
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Preparing…";
+
+        try {
+          const canvas = await renderStrip();
+          const blob = await canvasToBlob(canvas);
+          const file = new File([blob], "birthday-photobooth.jpg", {
+            type: "image/jpeg",
+          });
+
+          // iPhone / iPad / modern mobile: native share sheet -> "Save Image" to Photos
+          if (
+            navigator.canShare &&
+            navigator.canShare({ files: [file] })
+          ) {
+            await navigator.share({
+              files: [file],
+              title: "Birthday Photo Booth",
+            });
+          } else {
+            // Desktop fallback: normal download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.download = "birthday-photobooth.jpg";
+            a.href = url;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        } catch (err) {
+          // user cancelled the share sheet, or share failed — open image so it can be long-pressed
+          if (err && err.name !== "AbortError") {
+            const canvas = await renderStrip();
+            window.open(canvas.toDataURL("image/jpeg", 0.95), "_blank");
+          }
+        } finally {
+          btn.disabled = false;
+          btn.textContent = original;
+        }
       });
 
       $("#retakeBtn").addEventListener("click", () => {
