@@ -175,6 +175,10 @@
         object-fit: cover;
         display: block;
       }
+      /* mirror the live preview so it matches the saved (mirrored) capture */
+      .stage video {
+        transform: scaleX(-1);
+      }
       #snapCanvas {
         display: none;
       }
