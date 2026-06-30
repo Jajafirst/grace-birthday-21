@@ -831,7 +831,23 @@
         ).then((images) => {
           images.forEach((img, i) => {
             const y = pad + i * (ih + gap);
-            ctx.drawImage(img, pad, y, iw, ih);
+            // emulate CSS object-fit: cover — crop to fill, no stretching
+            const ir = img.width / img.height;
+            const br = iw / ih;
+            let sx = 0,
+              sy = 0,
+              sw = img.width,
+              sh = img.height;
+            if (ir > br) {
+              // image too wide — crop the sides
+              sw = img.height * br;
+              sx = (img.width - sw) / 2;
+            } else {
+              // image too tall — crop top/bottom
+              sh = img.width / br;
+              sy = (img.height - sh) / 2;
+            }
+            ctx.drawImage(img, sx, sy, sw, sh, pad, y, iw, ih);
           });
           ctx.fillStyle = "#b08d57";
           ctx.font = "italic 26px Georgia, serif";
@@ -843,7 +859,7 @@
 
       function canvasToBlob(canvas) {
         return new Promise((res) =>
-          canvas.toBlob((b) => res(b), "image/jpeg", 1)
+          canvas.toBlob((b) => res(b), "image/jpeg", 0.95)
         );
       }
 
