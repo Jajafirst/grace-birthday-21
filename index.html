@@ -843,7 +843,7 @@
 
       function canvasToBlob(canvas) {
         return new Promise((res) =>
-          canvas.toBlob((b) => res(b), "image/jpeg", 0.95)
+          canvas.toBlob((b) => res(b), "image/jpeg", 1)
         );
       }
 
